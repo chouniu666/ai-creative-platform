@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # 前端服务 (SvelteKit)
   frontend:
@@ -15,8 +13,11 @@ services:
       - PUBLIC_APP_VERSION=${PUBLIC_APP_VERSION:-1.0.0}
       - NODE_ENV=production
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
+    networks:
+      - ai-creative-network
 
   # 后端服务 (Go + Gin)
   backend:
@@ -79,14 +80,25 @@ services:
       - UPLOAD_MAX_SIZE=${UPLOAD_MAX_SIZE:-10MB}
       - UPLOAD_ALLOWED_TYPES=${UPLOAD_ALLOWED_TYPES:-.txt,.md,.json}
     depends_on:
-      - postgres
-      - redis
-      - qdrant
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     restart: unless-stopped
+    networks:
+      - ai-creative-network
 
   # PostgreSQL数据库
   postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: ai-creative-postgres
     environment:
       - POSTGRES_DB=${DB_NAME:-ai_creative}
@@ -103,10 +115,12 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    networks:
+      - ai-creative-network
 
   # Redis缓存
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: ai-creative-redis
     command: redis-server --requirepass ${REDIS_PASSWORD:-}
     ports:
@@ -114,11 +128,13 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
       interval: 30s
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    networks:
+      - ai-creative-network
 
   # Qdrant向量数据库
   qdrant:
@@ -138,6 +154,8 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    networks:
+      - ai-creative-network
 
   # Nginx反向代理
   nginx:
@@ -193,5 +211,5 @@ volumes:
   grafana_data:
 
 networks:
-  default:
+  ai-creative-network:
     driver: bridge
