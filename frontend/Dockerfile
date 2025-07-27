@@ -1,10 +1,10 @@
-# 使用官方Node.js 20镜像（支持npm 11.x）
-FROM node:20-alpine
+# 使用官方Node.js 24镜像（最新版本）
+FROM node:24-alpine
 
 # 安装curl用于健康检查
 RUN apk add --no-cache curl
 
-# 升级npm到最新版本（Node.js 20支持npm 11.x）
+# 升级npm到最新版本（Node.js 24内置最新npm）
 RUN npm install -g npm@latest
 
 # 设置工作目录
